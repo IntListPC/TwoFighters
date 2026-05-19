@@ -5,6 +5,10 @@ const MIN_SPELL_MANA = 3;
 const START_MANA = 2.5;
 const PLAN_LENGTH = 6;
 const EPS = 0.0001;
+const DAMAGE_SCALE = 3;
+const DEFENSE_SCALE = 3;
+const PARTIAL_BLOCK_VALUE = 3;
+const PROTECT_TEMP_HP = 9;
 
 const ACTIONS = {
   attack: { label: "Удар", short: "Удар" },
@@ -190,7 +194,7 @@ function prepareAction(fighter, plannedAction, index) {
     return {
       action: "attack",
       label: `Удар x${fmt(attack.amount)}`,
-      damage: attack.amount,
+      damage: attack.amount * DAMAGE_SCALE,
       defense: "none",
       vulnerability: 1,
       manaGain: 0.2,
@@ -205,7 +209,7 @@ function prepareAction(fighter, plannedAction, index) {
 
   if (plannedAction === "powerAttack") {
     if (!spendEnergy(fighter, 3)) return forcedRest(fighter, "Не хватило энергии на мощный удар");
-    return baseResult("powerAttack", "Мощный удар", { damage: 2, manaGain: 0.2 });
+    return baseResult("powerAttack", "Мощный удар", { damage: 2 * DAMAGE_SCALE, manaGain: 0.2 });
   }
 
   if (plannedAction === "fullBlock") {
@@ -223,8 +227,8 @@ function prepareAction(fighter, plannedAction, index) {
     return baseResult("protect", "Защититься", {
       defense: "full",
       manaGain: 0.2,
-      grantTempAfter: 3,
-      notes: ["на следующий ход будет 3 временных хита"],
+      grantTempAfter: PROTECT_TEMP_HP,
+      notes: [`на следующий ход будет ${PROTECT_TEMP_HP} временных хитов`],
     });
   }
 
@@ -345,24 +349,26 @@ function resolveHit(attacker, defender, attackResult, defenseResult) {
   }
 
   if (defenseResult.defense === "full") {
-    const absorbed = Math.min(defender.energy, damage);
-    if (absorbed > 0) {
-      spendEnergy(defender, absorbed);
-      damage -= absorbed;
-      energyBlocked = absorbed;
+    const absorbCapacity = defender.energy * DEFENSE_SCALE;
+    const absorbedDamage = Math.min(absorbCapacity, damage);
+    const energyCost = absorbedDamage / DEFENSE_SCALE;
+    if (absorbedDamage > 0) {
+      spendEnergy(defender, energyCost);
+      damage -= absorbedDamage;
+      energyBlocked = energyCost;
     }
     if (damage > EPS) {
       notes.push("полный блок поглотил не всё: не хватило энергии");
     } else {
-      notes.push("полный блок забрал урон в энергию");
+      notes.push(`полный блок поглотил урон: 1 энергия за ${DEFENSE_SCALE} урона`);
     }
   }
 
   if (defenseResult.defense === "partial") {
     if (spendEnergy(defender, 0.5)) {
-      partialBlocked = Math.min(1, damage);
+      partialBlocked = Math.min(PARTIAL_BLOCK_VALUE, damage);
       damage -= partialBlocked;
-      notes.push("частичный блок снял 1 урон");
+      notes.push(`частичный блок снял ${PARTIAL_BLOCK_VALUE} урона`);
     } else {
       notes.push("не хватило энергии удержать частичный блок под ударом");
     }
@@ -446,11 +452,15 @@ function chooseEnemyPlan() {
   let projectedEnergy = state.enemy.energy;
   let projectedMana = state.enemy.mana;
   let projectedCombo = state.enemy.combo;
+  let protectedNext = state.enemy.tempHp > 0;
   const styleRoll = Math.random();
   const style = styleRoll < 0.34 ? "aggressive" : styleRoll < 0.67 ? "guarded" : "patient";
 
   for (let i = 0; i < PLAN_LENGTH; i += 1) {
-    const action = chooseEnemyAction(style, projectedEnergy, projectedMana, projectedCombo, i);
+    let action = chooseEnemyAction(style, projectedEnergy, projectedMana, projectedCombo, i);
+    if (protectedNext && action === "fullBlock") {
+      action = projectedEnergy >= 3 && Math.random() < 0.55 ? "powerAttack" : "attack";
+    }
     plan.push(action);
 
     const projection = projectAction(action, projectedEnergy, projectedMana, projectedCombo);
@@ -459,12 +469,16 @@ function chooseEnemyPlan() {
     projectedCombo = projection.combo;
 
     const fullSpell = isSpellAction(action) && projection.wasFullSpell;
+    protectedNext = action === "protect";
+
     if (action === "predict" && i < PLAN_LENGTH - 1) {
       plan.push("enemyChoice");
       i += 1;
+      protectedNext = false;
     } else if (action === "deepPredict" && i < PLAN_LENGTH - 2) {
       plan.push("enemyChoice", "enemyChoice");
       i += 2;
+      protectedNext = false;
     } else if ((action === "relax" || fullSpell) && i < PLAN_LENGTH - 1) {
       const holdAction = action === "relax" ? "relaxHold" : "spellHold";
       plan.push(holdAction);
@@ -473,6 +487,7 @@ function chooseEnemyPlan() {
       projectedMana = holdProjection.mana;
       projectedCombo = holdProjection.combo;
       i += 1;
+      protectedNext = false;
     }
   }
 
@@ -862,6 +877,11 @@ function chooseEnemyResponse(playerAction, index) {
   }
 
   if (isIncomingAttack(playerAction)) {
+    if (state.enemy.tempHp > 0 && state.enemy.hp > 12) {
+      if (state.enemy.energy >= 3 && Math.random() < 0.55) return "powerAttack";
+      if (state.enemy.energy >= 1) return "attack";
+      return "wait";
+    }
     if (state.enemy.energy >= 3 && Math.random() < 0.45) return "protect";
     if (state.enemy.energy >= 1) return "fullBlock";
     if (state.enemy.energy >= 0.5) return "partialBlock";
