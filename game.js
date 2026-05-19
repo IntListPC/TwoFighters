@@ -9,6 +9,14 @@ const DAMAGE_SCALE = 3;
 const DEFENSE_SCALE = 3;
 const PARTIAL_BLOCK_VALUE = 3;
 const PROTECT_TEMP_HP = 9;
+const PASSIVE_ENERGY_GAIN = 1;
+const ATTACK_COSTS = [2, 3, 4];
+const POWER_ATTACK_COST = 5;
+const FULL_BLOCK_COST = 2;
+const PARTIAL_BLOCK_COST = 1;
+const PROTECT_COST = 6;
+const PREDICT_COST = 3;
+const DEEP_PREDICT_COST = 9;
 
 const ACTIONS = {
   attack: { label: "Удар", short: "Удар" },
@@ -131,13 +139,14 @@ function nextAttackPower(fighter) {
   const step = fighter.combo + 1 > 3 ? 1 : fighter.combo + 1;
   return {
     comboStep: step,
+    cost: ATTACK_COSTS[step - 1],
     amount: step === 1 ? 1 : step === 2 ? 1.5 : 2,
   };
 }
 
 function forcedRest(fighter, reason) {
   fighter.combo = 0;
-  addEnergy(fighter, 4);
+  addEnergy(fighter, 2);
   return {
     action: "rest",
     label: reason || "Вынужденный отдых",
@@ -188,7 +197,7 @@ function prepareAction(fighter, plannedAction, index) {
 
   if (plannedAction === "attack") {
     const attack = nextAttackPower(fighter);
-    if (!spendEnergy(fighter, attack.amount)) {
+    if (!spendEnergy(fighter, attack.cost)) {
       return forcedRest(fighter, "Не хватило энергии на удар");
     }
     return {
@@ -208,22 +217,22 @@ function prepareAction(fighter, plannedAction, index) {
   fighter.combo = 0;
 
   if (plannedAction === "powerAttack") {
-    if (!spendEnergy(fighter, 3)) return forcedRest(fighter, "Не хватило энергии на мощный удар");
+    if (!spendEnergy(fighter, POWER_ATTACK_COST)) return forcedRest(fighter, "Не хватило энергии на мощный удар");
     return baseResult("powerAttack", "Мощный удар", { damage: 2 * DAMAGE_SCALE, manaGain: 0.2 });
   }
 
   if (plannedAction === "fullBlock") {
-    if (!spendEnergy(fighter, 1)) return forcedRest(fighter, "Не хватило энергии на полный блок");
+    if (!spendEnergy(fighter, FULL_BLOCK_COST)) return forcedRest(fighter, "Не хватило энергии на полный блок");
     return baseResult("fullBlock", "Полный блок", { defense: "full", manaGain: 0.2 });
   }
 
   if (plannedAction === "partialBlock") {
-    if (!spendEnergy(fighter, 0.5)) return forcedRest(fighter, "Не хватило энергии на частичный блок");
+    if (!spendEnergy(fighter, PARTIAL_BLOCK_COST)) return forcedRest(fighter, "Не хватило энергии на частичный блок");
     return baseResult("partialBlock", "Частичный блок", { defense: "partial", manaGain: 0.2 });
   }
 
   if (plannedAction === "protect") {
-    if (!spendEnergy(fighter, 3)) return forcedRest(fighter, "Не хватило энергии защититься");
+    if (!spendEnergy(fighter, PROTECT_COST)) return forcedRest(fighter, "Не хватило энергии защититься");
     return baseResult("protect", "Защититься", {
       defense: "full",
       manaGain: 0.2,
@@ -233,32 +242,30 @@ function prepareAction(fighter, plannedAction, index) {
   }
 
   if (plannedAction === "predict") {
-    if (!spendEnergy(fighter, 1)) return forcedRest(fighter, "Не хватило энергии на предсказание");
+    if (!spendEnergy(fighter, PREDICT_COST)) return forcedRest(fighter, "Не хватило энергии на предсказание");
     return baseResult("predict", "Предсказать", { vulnerability: 1.5, manaGain: 0.2, revealCount: 1 });
   }
 
   if (plannedAction === "deepPredict") {
-    if (!spendEnergy(fighter, 3)) return forcedRest(fighter, "Не хватило энергии на глубокий прогноз");
+    if (!spendEnergy(fighter, DEEP_PREDICT_COST)) return forcedRest(fighter, "Не хватило энергии на глубокий прогноз");
     return baseResult("deepPredict", "Глубокий прогноз", { vulnerability: 2, manaGain: 0.2, revealCount: 2 });
   }
 
   if (plannedAction === "rest") {
-    addEnergy(fighter, 4);
+    addEnergy(fighter, 2);
     return baseResult("rest", "Отдых", { vulnerability: 2, manaGain: 0.3 });
   }
 
   if (plannedAction === "relax" || plannedAction === "relaxHold") {
-    addEnergy(fighter, 6);
+    addEnergy(fighter, 4);
     return baseResult(plannedAction, plannedAction === "relax" ? "Расслабиться" : "Расслабление", { vulnerability: 3, manaGain: 0.3 });
   }
 
   if (plannedAction === "meditate") {
-    addEnergy(fighter, 1);
     return baseResult("meditate", "Медитация", { vulnerability: 2, manaGain: 0.6 });
   }
 
   if (plannedAction === "wait") {
-    addEnergy(fighter, 2);
     return baseResult("wait", "Ничего", { manaGain: 0.2 });
   }
 
@@ -266,7 +273,6 @@ function prepareAction(fighter, plannedAction, index) {
     return prepareSpell(fighter, plannedAction, index);
   }
 
-  addEnergy(fighter, 2);
   return baseResult("wait", "Ничего", { manaGain: 0.2 });
 }
 
@@ -365,7 +371,7 @@ function resolveHit(attacker, defender, attackResult, defenseResult) {
   }
 
   if (defenseResult.defense === "partial") {
-    if (spendEnergy(defender, 0.5)) {
+    if (spendEnergy(defender, PARTIAL_BLOCK_COST)) {
       partialBlocked = Math.min(PARTIAL_BLOCK_VALUE, damage);
       damage -= partialBlocked;
       notes.push(`частичный блок снял ${PARTIAL_BLOCK_VALUE} урона`);
@@ -414,6 +420,8 @@ function finalizeFighter(fighter, result, index) {
     addMana(fighter, result.manaGain);
   }
 
+  addEnergy(fighter, PASSIVE_ENERGY_GAIN);
+
   if (fighter.tempExpiresAt === index) {
     fighter.tempHp = 0;
     fighter.tempExpiresAt = null;
@@ -458,8 +466,14 @@ function chooseEnemyPlan() {
 
   for (let i = 0; i < PLAN_LENGTH; i += 1) {
     let action = chooseEnemyAction(style, projectedEnergy, projectedMana, projectedCombo, i);
+    if (!canProjectAction(action, projectedEnergy, projectedMana, projectedCombo, i)) {
+      action = projectedEnergy < ATTACK_COSTS[0] ? "rest" : "wait";
+    }
     if (protectedNext && action === "fullBlock") {
-      action = projectedEnergy >= 3 && Math.random() < 0.55 ? "powerAttack" : "attack";
+      action = projectedEnergy >= POWER_ATTACK_COST && Math.random() < 0.55 ? "powerAttack" : "attack";
+      if (!canProjectAction(action, projectedEnergy, projectedMana, projectedCombo, i)) {
+        action = "wait";
+      }
     }
     plan.push(action);
 
@@ -499,7 +513,7 @@ function chooseEnemyAction(style, energy, mana, combo, index) {
   const playerHpRatio = state.player.hp / MAX_HP;
   const playerEnergyRatio = state.player.energy / MAX_ENERGY;
   const playerManaReady = state.player.mana >= MIN_SPELL_MANA;
-  const playerCanBurst = state.player.energy >= 3 || state.player.combo >= 1;
+  const playerCanBurst = state.player.energy >= ATTACK_COSTS[0] || state.player.combo >= 1;
   const fullSpellCanFit = index < PLAN_LENGTH - 1;
   const canPredict = index < PLAN_LENGTH - 1;
   const canDeepPredict = index < PLAN_LENGTH - 2;
@@ -508,21 +522,21 @@ function chooseEnemyAction(style, energy, mana, combo, index) {
   const randomness = Math.random();
 
   if (canCastSpell && state.enemy.hp < 20 && Math.random() < 0.28) return "spellHeal";
-  if (canCastSpell && energy < 9 && Math.random() < 0.26) return "spellEnergy";
+  if (canCastSpell && energy < 10 && Math.random() < 0.26) return "spellEnergy";
   if (mana >= MAX_MANA - EPS && fullSpellCanFit && style === "aggressive" && Math.random() < 0.2) return "spellEmpower";
-  if (energy < 2.5) return Math.random() < 0.58 || !canUseTwoSlotAction ? "rest" : "relax";
-  if (energy < 6 && canUseTwoSlotAction && Math.random() < 0.24) return "relax";
+  if (energy < ATTACK_COSTS[0]) return Math.random() < 0.58 || !canUseTwoSlotAction ? "rest" : "relax";
+  if (energy < 8 && canUseTwoSlotAction && Math.random() < 0.24) return "relax";
 
-  if (combo === 2 && energy >= 2 && Math.random() < 0.62) return "attack";
-  if (playerHpRatio < 0.28 && energy >= 3 && Math.random() < 0.36) return "powerAttack";
-  if ((playerCanBurst || playerManaReady) && energy >= 3 && Math.random() < (style === "guarded" ? 0.26 : 0.14)) return "protect";
-  if (playerCanBurst && energy >= 1 && Math.random() < 0.22) return "fullBlock";
+  if (combo === 2 && energy >= ATTACK_COSTS[2] && Math.random() < 0.62) return "attack";
+  if (playerHpRatio < 0.28 && energy >= POWER_ATTACK_COST && Math.random() < 0.36) return "powerAttack";
+  if ((playerCanBurst || playerManaReady) && energy >= PROTECT_COST && Math.random() < (style === "guarded" ? 0.26 : 0.14)) return "protect";
+  if (playerCanBurst && energy >= FULL_BLOCK_COST && Math.random() < 0.22) return "fullBlock";
   if (playerEnergyRatio < 0.18 && enemyHpRatio > 0.45 && Math.random() < 0.28) return "meditate";
-  if (enemyHpRatio < playerHpRatio && energy >= 3 && Math.random() < 0.18) return "powerAttack";
-  if (energy >= 3 && Math.random() < (style === "aggressive" ? 0.12 : 0.06)) return "powerAttack";
-  if (energy >= 3 && Math.random() < (style === "guarded" ? 0.1 : 0.04)) return "protect";
-  if (canDeepPredict && energy >= 3 && Math.random() < 0.04) return "deepPredict";
-  if (canPredict && energy >= 1 && Math.random() < 0.08) return "predict";
+  if (enemyHpRatio < playerHpRatio && energy >= POWER_ATTACK_COST && Math.random() < 0.18) return "powerAttack";
+  if (energy >= POWER_ATTACK_COST && Math.random() < (style === "aggressive" ? 0.12 : 0.06)) return "powerAttack";
+  if (energy >= PROTECT_COST && Math.random() < (style === "guarded" ? 0.1 : 0.04)) return "protect";
+  if (canDeepPredict && energy >= DEEP_PREDICT_COST && Math.random() < 0.04) return "deepPredict";
+  if (canPredict && energy >= PREDICT_COST && Math.random() < 0.08) return "predict";
 
   const roll = randomness;
   if (style === "aggressive") {
@@ -556,47 +570,46 @@ function projectAction(action, energy, mana, combo) {
 
   if (action === "attack") {
     const step = combo + 1 > 3 ? 1 : combo + 1;
-    const cost = step === 1 ? 1 : step === 2 ? 1.5 : 2;
+    const cost = ATTACK_COSTS[step - 1];
     nextEnergy -= cost;
     nextMana += 0.2;
     nextCombo = step >= 3 ? 0 : step;
   } else if (action === "powerAttack") {
-    nextEnergy -= 3;
+    nextEnergy -= POWER_ATTACK_COST;
     nextMana += 0.2;
   } else if (action === "fullBlock") {
-    nextEnergy -= 1;
+    nextEnergy -= FULL_BLOCK_COST;
     nextMana += 0.2;
   } else if (action === "partialBlock") {
-    nextEnergy -= 0.5;
+    nextEnergy -= PARTIAL_BLOCK_COST;
     nextMana += 0.2;
   } else if (action === "protect") {
-    nextEnergy -= 3;
+    nextEnergy -= PROTECT_COST;
     nextMana += 0.2;
   } else if (action === "predict") {
-    nextEnergy -= 1;
+    nextEnergy -= PREDICT_COST;
     nextMana += 0.2;
   } else if (action === "deepPredict") {
-    nextEnergy -= 3;
+    nextEnergy -= DEEP_PREDICT_COST;
     nextMana += 0.2;
   } else if (action === "rest") {
-    nextEnergy += 4;
+    nextEnergy += 2;
     nextMana += 0.3;
   } else if (action === "relax" || action === "relaxHold") {
-    nextEnergy += 6;
+    nextEnergy += 4;
     nextMana += 0.3;
   } else if (action === "meditate") {
-    nextEnergy += 1;
     nextMana += 0.6;
   } else if (action === "wait") {
-    nextEnergy += 2;
     nextMana += 0.2;
   } else if (action === "enemyChoice") {
-    nextEnergy += 2;
     nextMana += 0.2;
   } else if (isSpellAction(action) && nextMana >= MIN_SPELL_MANA) {
     wasFullSpell = nextMana >= MAX_MANA - EPS;
     nextMana = -clamp(nextMana, 0, MAX_MANA) / 2;
   }
+
+  nextEnergy += PASSIVE_ENERGY_GAIN;
 
   return {
     energy: clamp(nextEnergy, 0, MAX_ENERGY),
@@ -604,6 +617,22 @@ function projectAction(action, energy, mana, combo) {
     combo: nextCombo,
     wasFullSpell,
   };
+}
+
+function canProjectAction(action, energy, mana, combo, index) {
+  if (action === "attack") {
+    const step = combo + 1 > 3 ? 1 : combo + 1;
+    return energy >= ATTACK_COSTS[step - 1];
+  }
+  if (action === "powerAttack") return energy >= POWER_ATTACK_COST;
+  if (action === "fullBlock") return energy >= FULL_BLOCK_COST;
+  if (action === "partialBlock") return energy >= PARTIAL_BLOCK_COST;
+  if (action === "protect") return energy >= PROTECT_COST;
+  if (action === "predict") return energy >= PREDICT_COST && index < PLAN_LENGTH - 1;
+  if (action === "deepPredict") return energy >= DEEP_PREDICT_COST && index < PLAN_LENGTH - 2;
+  if (action === "relax") return index < PLAN_LENGTH - 1;
+  if (isSpellAction(action)) return mana >= MIN_SPELL_MANA && (mana < MAX_MANA - EPS || index < PLAN_LENGTH - 1);
+  return true;
 }
 
 function isSpellAction(action) {
@@ -878,19 +907,19 @@ function chooseEnemyResponse(playerAction, index) {
 
   if (isIncomingAttack(playerAction)) {
     if (state.enemy.tempHp > 0 && state.enemy.hp > 12) {
-      if (state.enemy.energy >= 3 && Math.random() < 0.55) return "powerAttack";
-      if (state.enemy.energy >= 1) return "attack";
+      if (state.enemy.energy >= POWER_ATTACK_COST && Math.random() < 0.55) return "powerAttack";
+      if (state.enemy.energy >= ATTACK_COSTS[0]) return "attack";
       return "wait";
     }
-    if (state.enemy.energy >= 3 && Math.random() < 0.45) return "protect";
-    if (state.enemy.energy >= 1) return "fullBlock";
-    if (state.enemy.energy >= 0.5) return "partialBlock";
+    if (state.enemy.energy >= PROTECT_COST && Math.random() < 0.45) return "protect";
+    if (state.enemy.energy >= FULL_BLOCK_COST) return "fullBlock";
+    if (state.enemy.energy >= PARTIAL_BLOCK_COST) return "partialBlock";
     return "rest";
   }
 
   if (isVulnerableAction(playerAction)) {
-    if (state.enemy.energy >= 3 && Math.random() < 0.55) return "powerAttack";
-    if (state.enemy.energy >= 1) return "attack";
+    if (state.enemy.energy >= POWER_ATTACK_COST && Math.random() < 0.55) return "powerAttack";
+    if (state.enemy.energy >= ATTACK_COSTS[0]) return "attack";
     return "wait";
   }
 
@@ -902,7 +931,7 @@ function chooseEnemyResponse(playerAction, index) {
 
   if (state.enemy.mana >= MIN_SPELL_MANA && state.enemy.hp < 22 && Math.random() < 0.35) return "spellHeal";
   if (state.enemy.energy < 8) return "relax";
-  return state.enemy.energy >= 3 && Math.random() < 0.3 ? "powerAttack" : "attack";
+  return state.enemy.energy >= POWER_ATTACK_COST && Math.random() < 0.3 ? "powerAttack" : "attack";
 }
 
 function isIncomingAttack(action) {

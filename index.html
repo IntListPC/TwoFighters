@@ -126,47 +126,47 @@
           <div class="action-grid" id="actionButtons">
             <button class="action-button attack" data-action="attack" type="button">
               <span>Удар</span>
-              <small>урон 3 / 4.5 / 6</small>
+              <small>урон 3 / 4.5 / 6, цена 2 / 3 / 4</small>
             </button>
             <button class="action-button power" data-action="powerAttack" type="button">
               <span>Мощный удар</span>
-              <small>6 урона, 3 энергии</small>
+              <small>6 урона, 5 энергии</small>
             </button>
             <button class="action-button fullBlock" data-action="fullBlock" type="button">
               <span>Полный блок</span>
-              <small>1 энергия + поглощённый урон</small>
+              <small>2 энергии + поглощение 1 за 3 урона</small>
             </button>
             <button class="action-button partialBlock" data-action="partialBlock" type="button">
               <span>Частичный блок</span>
-              <small>0.5 + 0.5 при ударе, минус 3 урона</small>
+              <small>1 + 1 при ударе, минус 3 урона</small>
             </button>
             <button class="action-button protect" data-action="protect" type="button">
               <span>Защититься</span>
-              <small>3 энергии, полный блок и +9 врем. хитов</small>
+              <small>6 энергии, полный блок и +9 врем. хитов</small>
             </button>
             <button class="action-button predict" data-action="predict" type="button">
               <span>Предсказать</span>
-              <small>1 энергия, выбор следующего слота</small>
+              <small>3 энергии, выбор следующего слота</small>
             </button>
             <button class="action-button deepPredict" data-action="deepPredict" type="button">
               <span>Глубокий прогноз</span>
-              <small>3 энергии, два будущих выбора</small>
+              <small>9 энергии, два будущих выбора</small>
             </button>
             <button class="action-button rest" data-action="rest" type="button">
               <span>Отдохнуть</span>
-              <small>+4 энергии, +0.3 маны, урон x2</small>
+              <small>+2 энергии сверху, +0.3 маны, урон x2</small>
             </button>
             <button class="action-button relax" data-action="relax" type="button">
               <span>Расслабиться</span>
-              <small>2 хода, +12 энергии, урон x3</small>
+              <small>2 хода, +4 энергии сверху каждый ход, урон x3</small>
             </button>
             <button class="action-button meditate" data-action="meditate" type="button">
               <span>Медитация</span>
-              <small>+1 энергия, +0.6 маны, урон x2</small>
+              <small>+0 энергии сверху, +0.6 маны, урон x2</small>
             </button>
             <button class="action-button wait" data-action="wait" type="button">
               <span>Ничего</span>
-              <small>+2 энергии, +0.2 маны</small>
+              <small>только пассивная энергия, +0.2 маны</small>
             </button>
             <button class="action-button spell" data-action="spellHeal" type="button">
               <span>Лечение</span>
@@ -201,6 +201,7 @@
           </div>
           <ul>
             <li>Раунд идёт по шагам: нажимай “Дальше”, чтобы разыграть следующий ход.</li>
+            <li>Любое действие в конце хода восстанавливает 1 энергию.</li>
             <li>Если энергии не хватает на действие, воин вынужденно отдыхает.</li>
             <li>Предсказание раскрывает будущее действие врага и даёт выбрать ответный слот во время раунда.</li>
             <li>Магия доступна от 3 маны. Полная мана усиливает заклинания, но полный каст занимает два хода.</li>
