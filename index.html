@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Два Воина</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="game-shell">
+      <section class="arena" aria-label="Арена боя">
+        <div class="topbar">
+          <div>
+            <p class="eyebrow">Тактический бой</p>
+            <h1>Два Воина</h1>
+          </div>
+          <div class="round-pill" id="phaseLabel">Подготовка</div>
+        </div>
+
+        <div class="fighters">
+          <article class="fighter-panel player-side">
+            <div class="fighter-stats">
+              <h2>Ты</h2>
+              <div class="bar-row">
+                <span>Здоровье</span>
+                <strong id="playerHpText">50 / 50</strong>
+              </div>
+              <div class="bar"><div class="bar-fill hp" id="playerHpBar"></div></div>
+              <div class="bar-row">
+                <span>Энергия</span>
+                <strong id="playerEnergyText">30 / 30</strong>
+              </div>
+              <div class="bar"><div class="bar-fill energy" id="playerEnergyBar"></div></div>
+              <div class="bar-row">
+                <span>Мана</span>
+                <strong id="playerManaText">2.5 / 5</strong>
+              </div>
+              <div class="bar mana-track"><div class="bar-fill mana" id="playerManaBar"></div></div>
+              <div class="status-line" id="playerStatus">Комбо: 0</div>
+            </div>
+            <div class="fighter player" id="playerFighter" aria-hidden="true">
+              <div class="effect-bubble" id="playerEffect"></div>
+              <div class="fighter-shadow"></div>
+              <div class="body">
+                <div class="head"></div>
+                <div class="torso"></div>
+                <div class="arm shield-arm"></div>
+                <div class="arm sword-arm"></div>
+                <div class="shield"></div>
+                <div class="sword"></div>
+                <div class="leg left-leg"></div>
+                <div class="leg right-leg"></div>
+              </div>
+            </div>
+          </article>
+
+          <div class="center-stack">
+            <button class="next-button" id="nextStep" type="button" disabled>Дальше</button>
+            <div class="clash" id="clashText">VS</div>
+            <div class="round-step" id="roundStep">-</div>
+          </div>
+
+          <article class="fighter-panel enemy-side">
+            <div class="fighter-stats">
+              <h2>Противник</h2>
+              <div class="bar-row">
+                <span>Здоровье</span>
+                <strong id="enemyHpText">50 / 50</strong>
+              </div>
+              <div class="bar"><div class="bar-fill hp enemy-hp" id="enemyHpBar"></div></div>
+              <div class="bar-row">
+                <span>Энергия</span>
+                <strong id="enemyEnergyText">30 / 30</strong>
+              </div>
+              <div class="bar"><div class="bar-fill energy enemy-energy" id="enemyEnergyBar"></div></div>
+              <div class="bar-row">
+                <span>Мана</span>
+                <strong id="enemyManaText">2.5 / 5</strong>
+              </div>
+              <div class="bar mana-track"><div class="bar-fill mana enemy-mana" id="enemyManaBar"></div></div>
+              <div class="status-line" id="enemyStatus">Комбо: 0</div>
+            </div>
+            <div class="fighter enemy" id="enemyFighter" aria-hidden="true">
+              <div class="effect-bubble" id="enemyEffect"></div>
+              <div class="fighter-shadow"></div>
+              <div class="body">
+                <div class="head"></div>
+                <div class="torso"></div>
+                <div class="arm shield-arm"></div>
+                <div class="arm sword-arm"></div>
+                <div class="shield"></div>
+                <div class="sword"></div>
+                <div class="leg left-leg"></div>
+                <div class="leg right-leg"></div>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div class="action-strip">
+          <div class="turn-card">
+            <span>Твой ход</span>
+            <strong id="playerCurrentAction">-</strong>
+          </div>
+          <div class="turn-card forecast-card">
+            <span>Предсказание</span>
+            <strong id="forecastText">-</strong>
+          </div>
+          <div class="turn-card">
+            <span>Ход врага</span>
+            <strong id="enemyCurrentAction">?</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="controls" aria-label="План боя">
+        <div class="panel plan-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow" id="plannerHint">Выбери 6 действий</p>
+              <h2>План раунда</h2>
+            </div>
+            <span id="slotCounter">0 / 6</span>
+          </div>
+
+          <div class="action-grid" id="actionButtons">
+            <button class="action-button attack" data-action="attack" type="button">
+              <span>Удар</span>
+              <small>комбо 1 / 1.5 / 2</small>
+            </button>
+            <button class="action-button power" data-action="powerAttack" type="button">
+              <span>Мощный удар</span>
+              <small>2 урона, 3 энергии</small>
+            </button>
+            <button class="action-button fullBlock" data-action="fullBlock" type="button">
+              <span>Полный блок</span>
+              <small>1 энергия + поглощённый урон</small>
+            </button>
+            <button class="action-button partialBlock" data-action="partialBlock" type="button">
+              <span>Частичный блок</span>
+              <small>0.5 + 0.5 при ударе, минус 1 урон</small>
+            </button>
+            <button class="action-button protect" data-action="protect" type="button">
+              <span>Защититься</span>
+              <small>3 энергии, полный блок и +3 врем. хита</small>
+            </button>
+            <button class="action-button predict" data-action="predict" type="button">
+              <span>Предсказать</span>
+              <small>1 энергия, выбор следующего слота</small>
+            </button>
+            <button class="action-button deepPredict" data-action="deepPredict" type="button">
+              <span>Глубокий прогноз</span>
+              <small>3 энергии, два будущих выбора</small>
+            </button>
+            <button class="action-button rest" data-action="rest" type="button">
+              <span>Отдохнуть</span>
+              <small>+4 энергии, +0.3 маны, урон x2</small>
+            </button>
+            <button class="action-button relax" data-action="relax" type="button">
+              <span>Расслабиться</span>
+              <small>2 хода, +12 энергии, урон x3</small>
+            </button>
+            <button class="action-button meditate" data-action="meditate" type="button">
+              <span>Медитация</span>
+              <small>+1 энергия, +0.6 маны, урон x2</small>
+            </button>
+            <button class="action-button wait" data-action="wait" type="button">
+              <span>Ничего</span>
+              <small>+2 энергии, +0.2 маны</small>
+            </button>
+            <button class="action-button spell" data-action="spellHeal" type="button">
+              <span>Лечение</span>
+              <small>от 3 маны; вся мана в здоровье, полная x2</small>
+            </button>
+            <button class="action-button spell" data-action="spellEnergy" type="button">
+              <span>Заряд энергии</span>
+              <small>от 3 маны; мана x2, полная x3</small>
+            </button>
+            <button class="action-button spell" data-action="spellEmpower" type="button">
+              <span>Усиление</span>
+              <small>от 3 маны; атаки x1.5, мана в минус</small>
+            </button>
+          </div>
+
+          <div class="sequence" id="sequenceSlots" aria-label="Последовательность действий"></div>
+
+          <div class="command-row">
+            <button class="primary" id="startRound" type="button" disabled>Начать раунд</button>
+            <button id="undoAction" type="button">Убрать</button>
+            <button id="clearPlan" type="button">Очистить</button>
+            <button id="newGame" type="button">Новая игра</button>
+          </div>
+        </div>
+
+        <div class="panel rules-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Справка</p>
+              <h2>Правила</h2>
+            </div>
+          </div>
+          <ul>
+            <li>Раунд идёт по шагам: нажимай “Дальше”, чтобы разыграть следующий ход.</li>
+            <li>Если энергии не хватает на действие, воин вынужденно отдыхает.</li>
+            <li>Предсказание раскрывает будущее действие врага и даёт выбрать ответный слот во время раунда.</li>
+            <li>Магия доступна от 3 маны. Полная мана усиливает заклинания, но полный каст занимает два хода.</li>
+          </ul>
+        </div>
+
+        <div class="panel log-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">История</p>
+              <h2>Журнал боя</h2>
+            </div>
+          </div>
+          <div class="battle-log" id="battleLog" aria-live="polite"></div>
+        </div>
+      </section>
+    </main>
+
+    <script src="game.js"></script>
+  </body>
+</html>
